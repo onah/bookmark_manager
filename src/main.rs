@@ -1,10 +1,12 @@
 mod bookmark;
 mod cli;
+mod fileio;
 
 use bookmark::Bookmarks;
 use clap::Parser;
 use cli::{Cli, SubCommand};
 use core::str;
+use fileio::FileSystemReader;
 
 fn main() {
     let args = Cli::parse();
@@ -22,7 +24,8 @@ fn main() {
 }
 
 fn add(url: &str) {
-    let mut bookmarks = Bookmarks::new();
+    let reader = FileSystemReader;
+    let mut bookmarks = Bookmarks::new(reader);
 
     bookmarks.push(url.to_string());
     println!("Bookmarks: {:?}", bookmarks);
@@ -30,12 +33,14 @@ fn add(url: &str) {
 }
 
 fn list() {
-    let bookmarks = Bookmarks::new();
+    let reader = FileSystemReader;
+    let bookmarks = Bookmarks::new(reader);
     println!("{}", bookmarks);
 }
 
 fn execute(id: u32) {
-    let mut bookmarks = Bookmarks::new();
+    let reader = FileSystemReader;
+    let mut bookmarks = Bookmarks::new(reader);
 
     let url = bookmarks.search(id).unwrap();
     //println!("Executing: {}", url);

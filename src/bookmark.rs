@@ -1,3 +1,4 @@
+use crate::fileio::FileReader;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::io::Write;
@@ -31,8 +32,8 @@ pub struct Bookmarks {
 }
 
 impl Bookmarks {
-    pub fn new() -> Self {
-        let toml_str = std::fs::read_to_string(SETTINGS_FILE);
+    pub fn new<T: FileReader>(file_reader: T) -> Self {
+        let toml_str = file_reader.read_to_string(SETTINGS_FILE);
         match toml_str {
             Ok(str) => {
                 let bookmarks = toml::from_str(&str).unwrap();
@@ -85,5 +86,57 @@ impl Display for Bookmarks {
             write!(f, "{}\n", bookmark)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bookmark() {
+        let bookmark = Bookmark::new(1, "https://example.com".to_string());
+        assert_eq!(bookmark.id, 1);
+        assert_eq!(bookmark.url, "https://example.com");
+        assert_eq!(bookmark.reference, 0);
+    }
+
+    pub struct MockFileReader;
+    impl FileReader for MockFileReader {
+        fn read_to_string(&self, _path: &str) -> Result<String, std::io::Error> {
+            Ok("total_number = 1\n[[bookmarks]]\nid = 1\nurl = \"https://example.com\"\nreference = 0\n".to_string())
+        }
+    }
+
+    #[test]
+    fn test_bookmarks_new() {
+        let reader = MockFileReader;
+        let bookmarks = Bookmarks::new(reader);
+        assert_eq!(bookmarks.total_number, 1);
+    }
+
+    #[test]
+    fn test_bookmarks_push() {
+        let reader = MockFileReader;
+        let mut bookmarks = Bookmarks::new(reader);
+        bookmarks.push("https://example.com".to_string());
+        assert_eq!(bookmarks.total_number, 2);
+        assert_eq!(bookmarks.bookmarks.len(), 2);
+    }
+
+    #[test]
+    fn test_bookmarks_countup() {
+        let reader = MockFileReader;
+        let mut bookmarks = Bookmarks::new(reader);
+        bookmarks.countup(1);
+        assert_eq!(bookmarks.bookmarks[0].reference, 1);
+    }
+
+    #[test]
+    fn test_bookmarks_search() {
+        let reader = MockFileReader;
+        let bookmarks = Bookmarks::new(reader);
+        let url = bookmarks.search(1).unwrap();
+        assert_eq!(url, "https://example.com");
     }
 }
