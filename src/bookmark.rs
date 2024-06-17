@@ -1,9 +1,8 @@
-use crate::fileio::FileReader;
+use crate::fileio::FileAccessor;
+use crate::settings::{self, Settings};
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::io::Write;
-
-const SETTINGS_FILE: &str = "bookmarks.toml";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bookmark {
@@ -32,8 +31,10 @@ pub struct Bookmarks {
 }
 
 impl Bookmarks {
-    pub fn new<T: FileReader>(file_reader: T) -> Self {
-        let toml_str = file_reader.read_to_string(SETTINGS_FILE);
+    pub fn new<T: FileAccessor>(file_reader: T) -> Self {
+        let settings = Settings::new();
+
+        let toml_str = file_reader.read_to_string(&settings.get_bookmark_file());
         match toml_str {
             Ok(str) => {
                 let bookmarks = toml::from_str(&str).unwrap();
@@ -74,8 +75,11 @@ impl Bookmarks {
     }
 
     pub fn save(&self) {
+        let settings = settings::Settings::new();
+
         let toml_str = toml::to_string(&self).unwrap();
-        let mut file = std::fs::File::create(SETTINGS_FILE).unwrap();
+        println!("{}", settings.get_bookmark_file());
+        let mut file = std::fs::File::create(settings.get_bookmark_file()).unwrap();
         file.write_all(toml_str.as_bytes()).unwrap();
     }
 }
@@ -102,7 +106,7 @@ mod tests {
     }
 
     pub struct MockFileReader;
-    impl FileReader for MockFileReader {
+    impl FileAccessor for MockFileReader {
         fn read_to_string(&self, _path: &str) -> Result<String, std::io::Error> {
             Ok("total_number = 1\n[[bookmarks]]\nid = 1\nurl = \"https://example.com\"\nreference = 0\n".to_string())
         }

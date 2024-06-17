@@ -1,6 +1,7 @@
 mod bookmark;
 mod cli;
 mod fileio;
+mod settings;
 
 use bookmark::Bookmarks;
 use clap::Parser;
