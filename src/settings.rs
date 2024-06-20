@@ -1,3 +1,4 @@
+use crate::fileio::FileAccessor;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,8 +29,8 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn new() -> Self {
-        let settings = match std::fs::read_to_string("settings.toml") {
+    pub fn new<T: FileAccessor>(file_accessor: T) -> Self {
+        let settings = match file_accessor.read_to_string("settings.toml") {
             Ok(str) => toml::from_str(&str).unwrap(),
             Err(_) => Settings::default(),
         };

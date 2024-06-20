@@ -1,5 +1,5 @@
 use crate::fileio::FileAccessor;
-use crate::settings::{self, Settings};
+use crate::settings;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::io::Write;
@@ -31,22 +31,10 @@ pub struct Bookmarks {
 }
 
 impl Bookmarks {
-    pub fn new<T: FileAccessor>(file_reader: T) -> Self {
-        let settings = Settings::new();
-
-        let toml_str = file_reader.read_to_string(&settings.get_bookmark_file());
-        match toml_str {
-            Ok(str) => {
-                let bookmarks = toml::from_str(&str).unwrap();
-                return bookmarks;
-            }
-            Err(_) => {
-                let bookmarks = Bookmarks {
-                    total_number: 0,
-                    bookmarks: vec![],
-                };
-                return bookmarks;
-            }
+    pub fn new() -> Self {
+        Bookmarks {
+            total_number: 0,
+            bookmarks: vec![],
         }
     }
 
@@ -74,8 +62,8 @@ impl Bookmarks {
         None
     }
 
-    pub fn save(&self) {
-        let settings = settings::Settings::new();
+    pub fn save<T: FileAccessor>(&self, file_accessor: T) {
+        let settings = settings::Settings::new(file_accessor);
 
         let toml_str = toml::to_string(&self).unwrap();
         println!("{}", settings.get_bookmark_file());
@@ -90,6 +78,36 @@ impl Display for Bookmarks {
             write!(f, "{}\n", bookmark)?;
         }
         Ok(())
+    }
+}
+
+pub struct BookmarksAccessor {
+    bookmarks_path: String,
+}
+
+impl BookmarksAccessor {
+    pub fn new(path: &str) -> Self {
+        BookmarksAccessor {
+            bookmarks_path: path.to_string(),
+        }
+    }
+
+    pub fn load<T: FileAccessor>(&self, file_accessor: T) -> Bookmarks {
+        let toml_str = file_accessor.read_to_string(&self.bookmarks_path);
+        match toml_str {
+            Ok(str) => {
+                let bookmarks = toml::from_str(&str).unwrap();
+                return bookmarks;
+            }
+            Err(_) => {
+                let bookmarks = Bookmarks::new();
+                return bookmarks;
+            }
+        }
+    }
+
+    pub fn save<T: FileAccessor>(&self, file_accessor: T, bookmarks: &Bookmarks) {
+        bookmarks.save(file_accessor);
     }
 }
 
@@ -114,33 +132,36 @@ mod tests {
 
     #[test]
     fn test_bookmarks_new() {
-        let reader = MockFileReader;
-        let bookmarks = Bookmarks::new(reader);
-        assert_eq!(bookmarks.total_number, 1);
+        let bookmarks = Bookmarks::new();
+        assert_eq!(bookmarks.total_number, 0);
     }
 
     #[test]
     fn test_bookmarks_push() {
-        let reader = MockFileReader;
-        let mut bookmarks = Bookmarks::new(reader);
+        let mut bookmarks = Bookmarks::new();
         bookmarks.push("https://example.com".to_string());
-        assert_eq!(bookmarks.total_number, 2);
-        assert_eq!(bookmarks.bookmarks.len(), 2);
+        assert_eq!(bookmarks.total_number, 1);
+        assert_eq!(bookmarks.bookmarks.len(), 1);
     }
 
     #[test]
     fn test_bookmarks_countup() {
-        let reader = MockFileReader;
-        let mut bookmarks = Bookmarks::new(reader);
+        let mut bookmarks = Bookmarks::new();
+        bookmarks.push("https://example.com".to_string());
         bookmarks.countup(1);
         assert_eq!(bookmarks.bookmarks[0].reference, 1);
     }
 
     #[test]
-    fn test_bookmarks_search() {
-        let reader = MockFileReader;
-        let bookmarks = Bookmarks::new(reader);
-        let url = bookmarks.search(1).unwrap();
-        assert_eq!(url, "https://example.com");
+    fn test_bookmarks_search_none() {
+        let bookmarks = Bookmarks::new();
+        assert_eq!(bookmarks.search(1), None);
+    }
+
+    #[test]
+    fn test_bookmarks_search_some() {
+        let mut bookmarks = Bookmarks::new();
+        bookmarks.push("https://example.com".to_string());
+        assert_eq!(bookmarks.search(1), Some("https://example.com"));
     }
 }

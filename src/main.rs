@@ -3,11 +3,11 @@ mod cli;
 mod fileio;
 mod settings;
 
-use bookmark::Bookmarks;
+use bookmark::BookmarksAccessor;
 use clap::Parser;
 use cli::{Cli, SubCommand};
 use core::str;
-use fileio::FileSystemReader;
+use fileio::FileSystemAccessor;
 
 fn main() {
     let args = Cli::parse();
@@ -25,23 +25,28 @@ fn main() {
 }
 
 fn add(url: &str) {
-    let reader = FileSystemReader;
-    let mut bookmarks = Bookmarks::new(reader);
+    let settings = settings::Settings::new(FileSystemAccessor);
+    let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
+    let mut bookmarks = bookmark_accessor.load(FileSystemAccessor);
 
     bookmarks.push(url.to_string());
     println!("Bookmarks: {:?}", bookmarks);
-    bookmarks.save();
+    let accessor = FileSystemAccessor;
+    bookmark_accessor.save(accessor, &bookmarks);
 }
 
 fn list() {
-    let reader = FileSystemReader;
-    let bookmarks = Bookmarks::new(reader);
+    let settings = settings::Settings::new(FileSystemAccessor);
+    let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
+    let bookmarks = bookmark_accessor.load(FileSystemAccessor);
+
     println!("{}", bookmarks);
 }
 
 fn execute(id: u32) {
-    let reader = FileSystemReader;
-    let mut bookmarks = Bookmarks::new(reader);
+    let settings = settings::Settings::new(FileSystemAccessor);
+    let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
+    let mut bookmarks = bookmark_accessor.load(FileSystemAccessor);
 
     let url = bookmarks.search(id).unwrap();
     //println!("Executing: {}", url);
@@ -52,5 +57,6 @@ fn execute(id: u32) {
         .expect("failed to execute process");
 
     bookmarks.countup(id);
-    bookmarks.save();
+    let accessor = FileSystemAccessor;
+    bookmark_accessor.save(accessor, &bookmarks);
 }
