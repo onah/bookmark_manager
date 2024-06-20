@@ -1,8 +1,6 @@
 use crate::fileio::FileAccessor;
-use crate::settings;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::io::Write;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Bookmark {
@@ -61,15 +59,6 @@ impl Bookmarks {
         }
         None
     }
-
-    pub fn save<T: FileAccessor>(&self, file_accessor: T) {
-        let settings = settings::Settings::new(file_accessor);
-
-        let toml_str = toml::to_string(&self).unwrap();
-        println!("{}", settings.get_bookmark_file());
-        let mut file = std::fs::File::create(settings.get_bookmark_file()).unwrap();
-        file.write_all(toml_str.as_bytes()).unwrap();
-    }
 }
 
 impl Display for Bookmarks {
@@ -107,7 +96,10 @@ impl BookmarksAccessor {
     }
 
     pub fn save<T: FileAccessor>(&self, file_accessor: T, bookmarks: &Bookmarks) {
-        bookmarks.save(file_accessor);
+        let toml_str = toml::to_string(&bookmarks).unwrap();
+        file_accessor
+            .write_all(&self.bookmarks_path, &toml_str)
+            .unwrap();
     }
 }
 
@@ -123,10 +115,13 @@ mod tests {
         assert_eq!(bookmark.reference, 0);
     }
 
-    pub struct MockFileReader;
+    struct MockFileReader;
     impl FileAccessor for MockFileReader {
         fn read_to_string(&self, _path: &str) -> Result<String, std::io::Error> {
             Ok("total_number = 1\n[[bookmarks]]\nid = 1\nurl = \"https://example.com\"\nreference = 0\n".to_string())
+        }
+        fn write_all(&self, _path: &str, _content: &str) -> Result<(), std::io::Error> {
+            Ok(())
         }
     }
 
@@ -163,5 +158,21 @@ mod tests {
         let mut bookmarks = Bookmarks::new();
         bookmarks.push("https://example.com".to_string());
         assert_eq!(bookmarks.search(1), Some("https://example.com"));
+    }
+
+    #[test]
+    fn test_bookmarks_accessor_load() {
+        let accessor = BookmarksAccessor::new("bookmarks.toml");
+        let bookmarks = accessor.load(MockFileReader);
+        assert_eq!(bookmarks.total_number, 1);
+        assert_eq!(bookmarks.bookmarks.len(), 1);
+    }
+
+    #[test]
+    fn test_bookmarks_accessor_save() {
+        let accessor = BookmarksAccessor::new("bookmarks.toml");
+        let mut bookmarks = Bookmarks::new();
+        bookmarks.push("https://example.com".to_string());
+        accessor.save(MockFileReader, &bookmarks);
     }
 }
