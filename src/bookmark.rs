@@ -1,4 +1,5 @@
 use crate::fileio::FileAccessor;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
@@ -81,25 +82,25 @@ impl BookmarksAccessor {
         }
     }
 
-    pub fn load<T: FileAccessor>(&self, file_accessor: T) -> Bookmarks {
+    pub fn load<T: FileAccessor>(&self, file_accessor: T) -> Result<Bookmarks> {
         let toml_str = file_accessor.read_to_string(&self.bookmarks_path);
         match toml_str {
             Ok(str) => {
-                let bookmarks = toml::from_str(&str).unwrap();
-                return bookmarks;
+                let bookmarks = toml::from_str(&str)?;
+                return Ok(bookmarks);
             }
             Err(_) => {
                 let bookmarks = Bookmarks::new();
-                return bookmarks;
+                return Ok(bookmarks);
             }
         }
     }
 
-    pub fn save<T: FileAccessor>(&self, file_accessor: T, bookmarks: &Bookmarks) {
-        let toml_str = toml::to_string(&bookmarks).unwrap();
-        file_accessor
-            .write_all(&self.bookmarks_path, &toml_str)
-            .unwrap();
+    pub fn save<T: FileAccessor>(&self, file_accessor: T, bookmarks: &Bookmarks) -> Result<()> {
+        let toml_str = toml::to_string(&bookmarks)?;
+        file_accessor.write_all(&self.bookmarks_path, &toml_str)?;
+
+        Ok(())
     }
 }
 
@@ -163,7 +164,7 @@ mod tests {
     #[test]
     fn test_bookmarks_accessor_load() {
         let accessor = BookmarksAccessor::new("bookmarks.toml");
-        let bookmarks = accessor.load(MockFileReader);
+        let bookmarks = accessor.load(MockFileReader).unwrap();
         assert_eq!(bookmarks.total_number, 1);
         assert_eq!(bookmarks.bookmarks.len(), 1);
     }
@@ -173,6 +174,6 @@ mod tests {
         let accessor = BookmarksAccessor::new("bookmarks.toml");
         let mut bookmarks = Bookmarks::new();
         bookmarks.push("https://example.com".to_string());
-        accessor.save(MockFileReader, &bookmarks);
+        accessor.save(MockFileReader, &bookmarks).unwrap();
     }
 }

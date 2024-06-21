@@ -4,10 +4,12 @@ mod fileio;
 mod process;
 mod settings;
 
+use anyhow::Result;
 use clap::Parser;
 use cli::Cli;
 
-fn main() {
-    let args = Cli::parse();
-    args.run();
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+    cli.run()?;
+    Ok(())
 }

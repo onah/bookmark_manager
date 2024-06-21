@@ -2,6 +2,7 @@ use crate::bookmark::BookmarksAccessor;
 use crate::fileio::FileSystemAccessor;
 use crate::process::{ProcessExecutor, ProcessExecutorImpl};
 use crate::settings;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Subcommand)]
@@ -18,51 +19,57 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn run(&self) {
+    pub fn run(&self) -> Result<()> {
         match &self.subcommand {
             SubCommand::Add { url } => {
-                add(url);
+                add(url)?;
             }
             SubCommand::List => {
-                list();
+                list()?;
             }
             SubCommand::Execute { id } => {
                 let executor = ProcessExecutorImpl;
-                execute(*id, executor);
+                execute(*id, executor)?;
             }
         }
+        Ok(())
     }
 }
 
-fn add(url: &str) {
-    let settings = settings::Settings::new(FileSystemAccessor);
+fn add(url: &str) -> Result<()> {
+    let settings = settings::Settings::new(FileSystemAccessor)?;
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
-    let mut bookmarks = bookmark_accessor.load(FileSystemAccessor);
+    let mut bookmarks = bookmark_accessor.load(FileSystemAccessor)?;
 
     bookmarks.push(url.to_string());
     println!("Bookmarks: {:?}", bookmarks);
     let accessor = FileSystemAccessor;
-    bookmark_accessor.save(accessor, &bookmarks);
+    bookmark_accessor.save(accessor, &bookmarks)?;
+
+    Ok(())
 }
 
-fn list() {
-    let settings = settings::Settings::new(FileSystemAccessor);
+fn list() -> Result<()> {
+    let settings = settings::Settings::new(FileSystemAccessor)?;
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
-    let bookmarks = bookmark_accessor.load(FileSystemAccessor);
+    let bookmarks = bookmark_accessor.load(FileSystemAccessor)?;
 
     println!("{}", bookmarks);
+    Ok(())
 }
 
-fn execute<T: ProcessExecutor>(id: u32, executor: T) {
-    let settings = settings::Settings::new(FileSystemAccessor);
+fn execute<T: ProcessExecutor>(id: u32, executor: T) -> Result<()> {
+    let settings = settings::Settings::new(FileSystemAccessor)?;
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
-    let mut bookmarks = bookmark_accessor.load(FileSystemAccessor);
+    let mut bookmarks = bookmark_accessor.load(FileSystemAccessor)?;
 
-    let url = bookmarks.search(id).unwrap();
+    let url = bookmarks.search(id).context("Bookmark not found")?;
     let browser = settings.get_browser();
-    executor.execute(browser, url).unwrap();
+    executor.execute(browser, url)?;
 
     bookmarks.countup(id);
     let accessor = FileSystemAccessor;
-    bookmark_accessor.save(accessor, &bookmarks);
+    bookmark_accessor.save(accessor, &bookmarks)?;
+
+    Ok(())
 }
