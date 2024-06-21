@@ -1,5 +1,6 @@
 use crate::bookmark::BookmarksAccessor;
 use crate::fileio::FileSystemAccessor;
+use crate::process::{ProcessExecutor, ProcessExecutorImpl};
 use crate::settings;
 use clap::{Parser, Subcommand};
 
@@ -26,7 +27,8 @@ impl Cli {
                 list();
             }
             SubCommand::Execute { id } => {
-                execute(*id);
+                let executor = ProcessExecutorImpl;
+                execute(*id, executor);
             }
         }
     }
@@ -51,18 +53,14 @@ fn list() {
     println!("{}", bookmarks);
 }
 
-fn execute(id: u32) {
+fn execute<T: ProcessExecutor>(id: u32, executor: T) {
     let settings = settings::Settings::new(FileSystemAccessor);
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
     let mut bookmarks = bookmark_accessor.load(FileSystemAccessor);
 
     let url = bookmarks.search(id).unwrap();
-    //println!("Executing: {}", url);
-    let browswer = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe";
-    let _output = std::process::Command::new(browswer)
-        .arg(url)
-        .output()
-        .expect("failed to execute process");
+    let browser = settings.get_browser();
+    executor.execute(browser, url).unwrap();
 
     bookmarks.countup(id);
     let accessor = FileSystemAccessor;

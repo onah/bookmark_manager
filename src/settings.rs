@@ -40,4 +40,8 @@ impl Settings {
     pub fn get_bookmark_file(&self) -> &str {
         &self.bookmarks_file
     }
+
+    pub fn get_browser(&self) -> &str {
+        &self.browser
+    }
 }
