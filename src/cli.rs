@@ -1,8 +1,10 @@
 use crate::bookmark::BookmarksAccessor;
 use crate::fileio::FileSystemAccessor;
+use crate::html::{GetHtmlTitle, GetHtmlTitleImpl};
 use crate::process::{ProcessExecutor, ProcessExecutorImpl};
 use crate::settings;
-use anyhow::{Context, Result};
+use anyhow;
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Subcommand)]
@@ -19,10 +21,11 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub fn run(&self) -> Result<()> {
+    pub fn run(&self) -> anyhow::Result<()> {
         match &self.subcommand {
             SubCommand::Add { url } => {
-                add(url)?;
+                let html_accessor = GetHtmlTitleImpl;
+                add(url, html_accessor)?;
             }
             SubCommand::List => {
                 list()?;
@@ -36,12 +39,14 @@ impl Cli {
     }
 }
 
-fn add(url: &str) -> Result<()> {
+fn add<T: GetHtmlTitle>(url: &str, html_accessor: T) -> anyhow::Result<()> {
     let settings = settings::Settings::new(FileSystemAccessor)?;
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
     let mut bookmarks = bookmark_accessor.load(FileSystemAccessor)?;
 
-    bookmarks.push(url.to_string());
+    let title = html_accessor.get_html_title(url);
+
+    bookmarks.push(url.to_string(), title);
     println!("Bookmarks: {:?}", bookmarks);
     let accessor = FileSystemAccessor;
     bookmark_accessor.save(accessor, &bookmarks)?;
@@ -49,7 +54,7 @@ fn add(url: &str) -> Result<()> {
     Ok(())
 }
 
-fn list() -> Result<()> {
+fn list() -> anyhow::Result<()> {
     let settings = settings::Settings::new(FileSystemAccessor)?;
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
     let bookmarks = bookmark_accessor.load(FileSystemAccessor)?;
@@ -58,7 +63,7 @@ fn list() -> Result<()> {
     Ok(())
 }
 
-fn execute<T: ProcessExecutor>(id: u32, executor: T) -> Result<()> {
+fn execute<T: ProcessExecutor>(id: u32, executor: T) -> anyhow::Result<()> {
     let settings = settings::Settings::new(FileSystemAccessor)?;
     let bookmark_accessor = BookmarksAccessor::new(settings.get_bookmark_file());
     let mut bookmarks = bookmark_accessor.load(FileSystemAccessor)?;

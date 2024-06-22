@@ -1,5 +1,5 @@
 use crate::fileio::FileAccessor;
-use anyhow::Result;
+use anyhow;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,7 +30,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn new<T: FileAccessor>(file_accessor: T) -> Result<Self> {
+    pub fn new<T: FileAccessor>(file_accessor: T) -> anyhow::Result<Self> {
         let settings = match file_accessor.read_to_string("settings.toml") {
             Ok(str) => toml::from_str(&str)?,
             Err(_) => Settings::default(),

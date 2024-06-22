@@ -7,19 +7,29 @@ use std::fmt::Display;
 pub struct Bookmark {
     id: u32,
     url: String,
+    title: String,  // title of the bookmarked page
     reference: u32, // count of how many times the bookmark has been accessed
 }
 
 impl Bookmark {
-    pub fn new(id: u32, url: String) -> Self {
+    pub fn new(id: u32, url: String, title: String) -> Self {
         let reference = 0;
-        Bookmark { id, url, reference }
+        Bookmark {
+            id,
+            url,
+            title,
+            reference,
+        }
     }
 }
 
 impl Display for Bookmark {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} | {} | {}", self.id, self.url, self.reference)
+        write!(
+            f,
+            "{} | {} | {} | {} ",
+            self.id, self.url, self.title, self.reference
+        )
     }
 }
 
@@ -37,10 +47,10 @@ impl Bookmarks {
         }
     }
 
-    pub fn push(&mut self, url: String) {
+    pub fn push(&mut self, url: String, title: String) {
         self.total_number += 1;
 
-        let bookmark = Bookmark::new(self.total_number, url);
+        let bookmark = Bookmark::new(self.total_number, url, title);
         self.bookmarks.push(bookmark);
     }
 
@@ -110,16 +120,18 @@ mod tests {
 
     #[test]
     fn test_bookmark() {
-        let bookmark = Bookmark::new(1, "https://example.com".to_string());
+        let bookmark = Bookmark::new(1, "https://example.com".to_string(), "Example".to_string());
         assert_eq!(bookmark.id, 1);
         assert_eq!(bookmark.url, "https://example.com");
+        assert_eq!(bookmark.title, "Example");
         assert_eq!(bookmark.reference, 0);
     }
 
     struct MockFileReader;
     impl FileAccessor for MockFileReader {
         fn read_to_string(&self, _path: &str) -> Result<String, std::io::Error> {
-            Ok("total_number = 1\n[[bookmarks]]\nid = 1\nurl = \"https://example.com\"\nreference = 0\n".to_string())
+            Ok("total_number = 1\n[[bookmarks]]\nid = 1\nurl = \"https://example.com\"\ntitle = \"Example\"\nreference = 0\n ".to_string())
+            //            Ok("total_number = 1\n[[bookmarks]]\nid = 1\nurl = \"https://example.com\"\nreference = 0\n ".to_string())
         }
         fn write_all(&self, _path: &str, _content: &str) -> Result<(), std::io::Error> {
             Ok(())
@@ -135,7 +147,7 @@ mod tests {
     #[test]
     fn test_bookmarks_push() {
         let mut bookmarks = Bookmarks::new();
-        bookmarks.push("https://example.com".to_string());
+        bookmarks.push("https://example.com".to_string(), "Example".to_string());
         assert_eq!(bookmarks.total_number, 1);
         assert_eq!(bookmarks.bookmarks.len(), 1);
     }
@@ -143,7 +155,7 @@ mod tests {
     #[test]
     fn test_bookmarks_countup() {
         let mut bookmarks = Bookmarks::new();
-        bookmarks.push("https://example.com".to_string());
+        bookmarks.push("https://example.com".to_string(), "Example".to_string());
         bookmarks.countup(1);
         assert_eq!(bookmarks.bookmarks[0].reference, 1);
     }
@@ -157,7 +169,7 @@ mod tests {
     #[test]
     fn test_bookmarks_search_some() {
         let mut bookmarks = Bookmarks::new();
-        bookmarks.push("https://example.com".to_string());
+        bookmarks.push("https://example.com".to_string(), "Example".to_string());
         assert_eq!(bookmarks.search(1), Some("https://example.com"));
     }
 
@@ -173,7 +185,7 @@ mod tests {
     fn test_bookmarks_accessor_save() {
         let accessor = BookmarksAccessor::new("bookmarks.toml");
         let mut bookmarks = Bookmarks::new();
-        bookmarks.push("https://example.com".to_string());
+        bookmarks.push("https://example.com".to_string(), "Example".to_string());
         accessor.save(MockFileReader, &bookmarks).unwrap();
     }
 }
