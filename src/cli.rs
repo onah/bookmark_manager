@@ -45,6 +45,7 @@ fn add<T: GetHtmlTitle>(url: &str, html_accessor: T) -> anyhow::Result<()> {
     let mut bookmarks = bookmark_accessor.load(FileSystemAccessor)?;
 
     let title = html_accessor.get_html_title(url);
+    let title = clean_string(&title);
 
     bookmarks.push(url.to_string(), title);
     println!("Bookmarks: {:?}", bookmarks);
@@ -52,6 +53,10 @@ fn add<T: GetHtmlTitle>(url: &str, html_accessor: T) -> anyhow::Result<()> {
     bookmark_accessor.save(accessor, &bookmarks)?;
 
     Ok(())
+}
+
+fn clean_string(s: &str) -> String {
+    s.replace("\n", "").replace("\r", "").trim().to_string()
 }
 
 fn list() -> anyhow::Result<()> {
